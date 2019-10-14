@@ -37,7 +37,7 @@ public class ListingBenchmark {
 	 */
 	public static void main(String[] args) throws IOException, InterruptedException {
 		// TODO Change this to a large directory on your system!
-		Path test = Path.of("..");
+		Path test = Path.of("..", "..");
 		Set<Path> expected = SerialDirectoryListing.list(test);
 
 		// collect benchmarks in a list and shuffle to avoid order effects

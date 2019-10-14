@@ -3,10 +3,12 @@ import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
@@ -33,7 +35,9 @@ public class ExecutorDirectoryListing {
 	 * @throws InterruptedException
 	 */
 	public static Set<Path> list(Path path) throws InterruptedException {
-		HashSet<Path> paths = new HashSet<>();
+		// Protects writes, but still have to be careful about reads.
+		// In our case, no reads until multithreading is complete.
+		Set<Path> paths = Collections.synchronizedSet(new HashSet<>());
 
 		if (Files.exists(path)) {
 			paths.add(path);
@@ -42,7 +46,11 @@ public class ExecutorDirectoryListing {
 				TaskMaster master = new TaskMaster(paths);
 				master.start(path);
 				master.join();
+
+				// trigger shutdown and wait until complete
+				// (other option is to reuse it)
 				master.executor.shutdown();
+				master.executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
 			}
 		}
 
@@ -115,9 +123,7 @@ public class ExecutorDirectoryListing {
 						}
 					}
 
-					synchronized (paths) {
-						paths.addAll(local);
-					}
+					paths.addAll(local);
 				}
 				catch (IOException ex) {
 					throw new UncheckedIOException(ex);
